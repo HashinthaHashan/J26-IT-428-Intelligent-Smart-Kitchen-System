@@ -16,7 +16,7 @@
 
 The project aims to develop an intelligent, IoT-enabled kitchen platform that combines **IoT sensors, Artificial Intelligence/Machine Learning, Edge AI, computer vision, and a real-time mobile application** to improve household kitchen safety and reduce food waste.
 
-The proposed system focuses on four major areas:
+The proposed system focuses on four major areas::
 
 1. **LPG Gas Leak Detection, Risk Prediction, and Automated Hazard Mitigation**
 2. **AI-Based Smart Pantry Food Freshness Prediction and Food Waste Reduction**
