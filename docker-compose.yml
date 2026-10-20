@@ -1,0 +1,43 @@
+services:
+  mosquitto:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo-data:/data/db
+
+  mongo-express:
+    image: mongo-express:1
+    depends_on:
+      - mongo
+    ports:
+      - "8081:8081"
+    environment:
+      ME_CONFIG_MONGODB_SERVER: mongo
+      ME_CONFIG_BASICAUTH: "false"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    depends_on:
+      - mosquitto
+      - mongo
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      MONGO_URL: mongodb://mongo:27017
+      MQTT_HOST: mosquitto
+      ML_MODELS_DIR: /app/ml/models
+
+volumes:
+  mongo-data:

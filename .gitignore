@@ -1,0 +1,26 @@
+__pycache__/
+.pytest_cache/
+.venv/
+.venv*/
+*.pyc
+*.egg-info/
+.env
+preview_stack.*.log
+ml/models/*.joblib
+!.gitkeep
+!.gitignore
+
+# Flutter / Dart
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+.packages
+build/
+frontend/android/.gradle/
+frontend/ios/Pods/
+
+# Pest camera photos saved by the backend
+uploads/
+
+# Local zips of sketches (they contain real WiFi credentials)
+firmware/*.zip
