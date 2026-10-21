@@ -5,11 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../core/config.dart';
+import '../../core/device_presence.dart';
 import '../../models/lpg.dart';
 import '../../shared/widgets/clay.dart';
 import '../../shared/widgets/clay_gauge.dart';
 import '../../shared/widgets/clay_layout.dart';
 import '../../shared/widgets/clay_toggle.dart';
+import '../../shared/widgets/device_status_banner.dart';
 import 'lpg_providers.dart';
 
 const _gaugeMaxPpm = 1500.0;
@@ -18,7 +21,14 @@ const _confirmTimeout = Duration(seconds: 12);
 
 /// Display data derived from the backend's cloud tier.
 class _Tone {
-  const _Tone(this.pill, this.word, this.pillBg, this.pillFg, this.knob, this.card);
+  const _Tone(
+    this.pill,
+    this.word,
+    this.pillBg,
+    this.pillFg,
+    this.knob,
+    this.card,
+  );
   final String pill, word;
   final Color pillBg, pillFg, knob, card;
 }
@@ -26,17 +36,41 @@ class _Tone {
 _Tone _toneFor(String tier) {
   switch (tier.toLowerCase()) {
     case 'warning':
-      return const _Tone('Warning', 'Elevated', Clay.warnPillBg,
-          Clay.warnPillText, ClayGauge.peachColor, Clay.cardWarning);
+      return const _Tone(
+        'Warning',
+        'Elevated',
+        Clay.warnPillBg,
+        Clay.warnPillText,
+        ClayGauge.peachColor,
+        Clay.cardWarning,
+      );
     case 'dangerous':
-      return const _Tone('Dangerous', 'High', Clay.alertPillBg,
-          Clay.alertPillText, ClayGauge.coralColor, Color(0xFFFDF2EF));
+      return const _Tone(
+        'Dangerous',
+        'High',
+        Clay.alertPillBg,
+        Clay.alertPillText,
+        ClayGauge.coralColor,
+        Color(0xFFFDF2EF),
+      );
     case 'critical':
-      return const _Tone('Critical', 'Critical', Clay.alertPillBg,
-          Clay.alertPillText, ClayGauge.coralColor, Color(0xFFFDF2EF));
+      return const _Tone(
+        'Critical',
+        'Critical',
+        Clay.alertPillBg,
+        Clay.alertPillText,
+        ClayGauge.coralColor,
+        Color(0xFFFDF2EF),
+      );
     default:
-      return const _Tone('Safe', 'Normal', Clay.okPillBg, Clay.okPillText,
-          ClayGauge.sageColor, Clay.cardHealthy);
+      return const _Tone(
+        'Safe',
+        'Normal',
+        Clay.okPillBg,
+        Clay.okPillText,
+        ClayGauge.sageColor,
+        Clay.cardHealthy,
+      );
   }
 }
 
@@ -67,6 +101,13 @@ class _LpgScreenState extends ConsumerState<LpgScreen> {
 
   bool _fanOn(LpgSnapshot s) => s.raw.fanOn;
   bool _windowOpen(LpgSnapshot s) => s.raw.windowFrac > 0.5;
+
+  Future<void> _refresh() async {
+    await Future.wait([
+      ref.read(devicePresenceProvider.notifier).refresh(),
+      ref.read(lpgProvider.notifier).refresh(),
+    ]);
+  }
 
   /// Clears a pending command once telemetry shows the target state.
   void _reconcile(LpgState? state) {
@@ -115,15 +156,40 @@ class _LpgScreenState extends ConsumerState<LpgScreen> {
     ref.listen(lpgProvider, (_, next) => _reconcile(next.value));
     final value = ref.watch(lpgProvider);
     final notifier = ref.read(lpgProvider.notifier);
+    final availability = ref.watch(
+      deviceAvailabilityProvider((
+        component: 'lpg',
+        deviceId: AppConfig.lpgDeviceId,
+      )),
+    );
     const header = ClayScreenHeader(label: 'Gas monitor', title: 'LPG');
+
+    if (availability == DeviceAvailability.offline) {
+      return ClayPage(
+        onRefresh: _refresh,
+        children: [
+          header,
+          const SizedBox(height: 22),
+          ClayMessageCard(
+            message:
+                'LPG device is offline. Connect power and wait for its network light.',
+            onRetry: _refresh,
+          ),
+        ],
+      );
+    }
 
     final data = value.value;
     if (data == null) {
       return ClayPage(
-        onRefresh: notifier.refresh,
+        onRefresh: _refresh,
         children: [
           header,
           const SizedBox(height: 22),
+          if (availability == DeviceAvailability.online) ...[
+            const DeviceOnlineBanner(),
+            const SizedBox(height: 14),
+          ],
           value.hasError
               ? ClayMessageCard(
                 message: userFacingError(value.error!),
@@ -139,10 +205,12 @@ class _LpgScreenState extends ConsumerState<LpgScreen> {
     final fanShown = _fan?.target ?? _fanOn(latest);
     final windowShown = _window?.target ?? _windowOpen(latest);
     return ClayPage(
-      onRefresh: notifier.refresh,
+      onRefresh: _refresh,
       children: [
         header,
         const SizedBox(height: 22),
+        const DeviceOnlineBanner(),
+        const SizedBox(height: 14),
         if (latest.raw.edgeOfflineMode) ...[
           const _OfflineBanner(),
           const SizedBox(height: 14),
@@ -461,16 +529,13 @@ class _TrendCardState extends State<_TrendCard> {
                           getTitlesWidget:
                               (v, meta) => SideTitleWidget(
                                 meta: meta,
-                                child: Text(
-                                  switch (v.round()) {
-                                    0 => '0',
-                                    500 => '500',
-                                    1000 => '1K',
-                                    1500 => '1.5K',
-                                    _ => '',
-                                  },
-                                  style: labelStyle,
-                                ),
+                                child: Text(switch (v.round()) {
+                                  0 => '0',
+                                  500 => '500',
+                                  1000 => '1K',
+                                  1500 => '1.5K',
+                                  _ => '',
+                                }, style: labelStyle),
                               ),
                         ),
                       ),

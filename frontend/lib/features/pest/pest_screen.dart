@@ -2,9 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../core/config.dart';
+import '../../core/device_presence.dart';
 import '../../models/pest.dart';
 import '../../shared/widgets/clay.dart';
 import '../../shared/widgets/clay_layout.dart';
+import '../../shared/widgets/device_status_banner.dart';
 import 'pest_providers.dart';
 import 'pest_summary.dart';
 import 'trial_review_sheet.dart';
@@ -34,6 +37,13 @@ class PestScreen extends ConsumerStatefulWidget {
 class _PestScreenState extends ConsumerState<PestScreen> {
   String _zone = _allZones;
   int _shown = _pageStep;
+
+  Future<void> _refresh() async {
+    await Future.wait([
+      ref.read(devicePresenceProvider.notifier).refresh(),
+      ref.read(pestProvider.notifier).refresh(),
+    ]);
+  }
 
   void _selectZone(String zone) => setState(() {
     _zone = zone;
@@ -87,15 +97,40 @@ class _PestScreenState extends ConsumerState<PestScreen> {
   Widget build(BuildContext context) {
     final notifier = ref.read(pestProvider.notifier);
     final value = ref.watch(pestProvider);
+    final availability = ref.watch(
+      deviceAvailabilityProvider((
+        component: 'pest',
+        deviceId: AppConfig.pestDeviceId,
+      )),
+    );
     const header = ClayScreenHeader(label: 'Pest monitoring', title: 'Pest');
+
+    if (availability == DeviceAvailability.offline) {
+      return ClayPage(
+        onRefresh: _refresh,
+        children: [
+          header,
+          const SizedBox(height: 22),
+          ClayMessageCard(
+            message:
+                'Pest device is offline. Connect power to resume live monitoring.',
+            onRetry: _refresh,
+          ),
+        ],
+      );
+    }
 
     final data = value.value;
     if (data == null) {
       return ClayPage(
-        onRefresh: notifier.refresh,
+        onRefresh: _refresh,
         children: [
           header,
           const SizedBox(height: 22),
+          if (availability == DeviceAvailability.online) ...[
+            const DeviceOnlineBanner(),
+            const SizedBox(height: 14),
+          ],
           value.hasError
               ? ClayMessageCard(
                 message: userFacingError(value.error!),
@@ -111,9 +146,7 @@ class _PestScreenState extends ConsumerState<PestScreen> {
     final sorted = [...data.events]
       ..sort((a, b) => b.event.ts.compareTo(a.event.ts));
     final inZone =
-        allZones
-            ? sorted
-            : sorted.where((e) => e.event.zone == _zone).toList();
+        allZones ? sorted : sorted.where((e) => e.event.zone == _zone).toList();
     final summary = PestSummary.from(
       inZone.map((e) => e.event),
       zone: _zone,
@@ -124,10 +157,12 @@ class _PestScreenState extends ConsumerState<PestScreen> {
     final canLoadMore = remainingLocal > 0 || data.hasMore;
 
     return ClayPage(
-      onRefresh: notifier.refresh,
+      onRefresh: _refresh,
       children: [
         header,
         const SizedBox(height: 22),
+        const DeviceOnlineBanner(),
+        const SizedBox(height: 14),
         ClayEntrance(index: 0, child: _SummaryCard(summary: summary)),
         if (data.pendingTrials.isNotEmpty) ...[
           const SizedBox(height: 28),
@@ -237,7 +272,12 @@ class _SummaryCard extends StatelessWidget {
           child: Text(
             summary.headline,
             key: ValueKey(summary.headline),
-            style: Clay.text(25, weight: 900, color: Colors.white, height: 1.15),
+            style: Clay.text(
+              25,
+              weight: 900,
+              color: Colors.white,
+              height: 1.15,
+            ),
           ),
         ),
         const SizedBox(height: 6),
@@ -332,7 +372,12 @@ class _GlassTile extends StatelessWidget {
             child: Text(
               value,
               key: ValueKey(value),
-              style: Clay.text(24, weight: 900, color: Colors.white, height: 1.1),
+              style: Clay.text(
+                24,
+                weight: 900,
+                color: Colors.white,
+                height: 1.1,
+              ),
             ),
           ),
           const SizedBox(height: 2),
@@ -458,7 +503,8 @@ List<Color> _resultColors(PestResult r) => switch (r) {
 String _resultWords(PestEvent e) {
   final r = resultOf(e);
   if (r.label == null) return 'no result';
-  final pct = e.yoloConf == null ? '' : ' ${(e.yoloConf! * 100).round()} percent';
+  final pct =
+      e.yoloConf == null ? '' : ' ${(e.yoloConf! * 100).round()} percent';
   return '${r.label}$pct';
 }
 
@@ -494,7 +540,12 @@ class _ResultPill extends StatelessWidget {
             if (event.yoloConf != null)
               Text(
                 '${(event.yoloConf! * 100).round()}%',
-                style: Clay.text(15, weight: 900, color: colors.fg, height: 1.2),
+                style: Clay.text(
+                  15,
+                  weight: 900,
+                  color: colors.fg,
+                  height: 1.2,
+                ),
               ),
           ],
         ),
@@ -617,7 +668,11 @@ class _MoreButton extends StatelessWidget {
                   )
                   : Text(
                     'Show older events',
-                    style: Clay.text(14.5, weight: 800, color: Clay.violet.last),
+                    style: Clay.text(
+                      14.5,
+                      weight: 800,
+                      color: Clay.violet.last,
+                    ),
                   ),
         ),
       ),
@@ -754,7 +809,11 @@ class _EventSheet extends StatelessWidget {
                       Text(event.zone, style: Clay.text(21, weight: 900)),
                       Text(
                         '${event.triggerSource} · ${_time(event.ts)}',
-                        style: Clay.text(14, weight: 600, color: Clay.mutedWarm),
+                        style: Clay.text(
+                          14,
+                          weight: 600,
+                          color: Clay.mutedWarm,
+                        ),
                       ),
                     ],
                   ),

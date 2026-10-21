@@ -377,7 +377,9 @@ void netBegin() {
 
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setBufferSize(512);
-  mqtt.setKeepAlive(30);  // slow cadence: relax keepalive vs the LPG board
+  // Detect a powered-off board quickly so the app never presents stale values
+  // as live during the component-by-component demonstration.
+  mqtt.setKeepAlive(8);
   mqtt.setSocketTimeout(2);
 
   xTaskCreatePinnedToCore(netTask, "kg-net", 8192, nullptr, 1, nullptr, 0);

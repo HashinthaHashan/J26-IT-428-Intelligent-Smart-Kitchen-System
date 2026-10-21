@@ -2,6 +2,8 @@
 
 KitchenGuard is the SLIIT project **J26-IT-428**: one Flutter mobile application backed by a FastAPI service, MQTT device messaging, MongoDB-compatible persistence, shared Pydantic contracts, four hardware simulators, and optional machine-learning artifacts.
 
+For the component-by-component hardware presentation, use the [viva demo checklist](docs/viva-demo.md).
+
 This README is both the operator guide and the engineering handoff. It records the repository's current behavior, the work completed so far, the commands that have been verified on Windows, and the constraints a future developer or AI agent must preserve.
 
 ## Current Status

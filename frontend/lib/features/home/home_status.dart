@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/config.dart';
+import '../../core/device_presence.dart';
 import '../../shared/widgets/clay.dart';
 import '../child/child_providers.dart';
 import '../lpg/lpg_providers.dart';
@@ -81,13 +83,13 @@ Severity severityOf(String status) {
 /// Stable severity sort (critical, warning, ok, unknown); ties keep their
 /// original order.
 List<SystemStatus> sortBySeverity(Iterable<SystemStatus> systems) {
-  final indexed = systems.toList().asMap().entries.toList()
-    ..sort((a, b) {
-      final bySeverity = a.value.severity.index.compareTo(
-        b.value.severity.index,
-      );
-      return bySeverity != 0 ? bySeverity : a.key.compareTo(b.key);
-    });
+  final indexed =
+      systems.toList().asMap().entries.toList()..sort((a, b) {
+        final bySeverity = a.value.severity.index.compareTo(
+          b.value.severity.index,
+        );
+        return bySeverity != 0 ? bySeverity : a.key.compareTo(b.key);
+      });
   return [for (final entry in indexed) entry.value];
 }
 
@@ -218,19 +220,21 @@ SystemStatus childStatus(ChildState state) {
 }
 
 /// Placeholder for a system whose data has not arrived yet.
-SystemStatus unavailableStatus(SystemStatus template, {required bool loading}) =>
-    SystemStatus(
-      id: template.id,
-      title: template.title,
-      subtitle: loading ? 'Checking...' : 'Could not reach this system',
-      icon: template.icon,
-      iconColors: template.iconColors,
-      route: template.route,
-      severity: Severity.unknown,
-      pillLabel: loading ? 'Checking' : 'Offline',
-      compact: template.compact,
-      tip: loading ? null : 'Pull down to try again.',
-    );
+SystemStatus unavailableStatus(
+  SystemStatus template, {
+  required bool loading,
+}) => SystemStatus(
+  id: template.id,
+  title: template.title,
+  subtitle: loading ? 'Checking...' : 'Could not reach this system',
+  icon: template.icon,
+  iconColors: template.iconColors,
+  route: template.route,
+  severity: Severity.unknown,
+  pillLabel: loading ? 'Checking' : 'Offline',
+  compact: template.compact,
+  tip: loading ? null : 'Pull down to try again.',
+);
 
 String _pill(String status) =>
     status.isEmpty ? status : status[0].toUpperCase() + status.substring(1);
@@ -251,6 +255,21 @@ SystemStatus _fromAsync<T>(
   final data = value.value;
   if (data != null) return build(data);
   return unavailableStatus(placeholder, loading: value.isLoading);
+}
+
+SystemStatus _withAvailability<T>(
+  DeviceAvailability availability,
+  AsyncValue<T> value,
+  SystemStatus placeholder,
+  SystemStatus Function(T) build,
+) {
+  if (availability != DeviceAvailability.online) {
+    return unavailableStatus(
+      placeholder,
+      loading: availability == DeviceAvailability.checking,
+    );
+  }
+  return _fromAsync(value, placeholder, build);
 }
 
 const _lpgPlaceholder = SystemStatus(
@@ -308,23 +327,64 @@ const _childPlaceholder = SystemStatus(
 
 /// All five systems, derived from the live REST+WebSocket providers and
 /// sorted so the most severe come first.
-final homeSystemsProvider = Provider<List<SystemStatus>>(
-  (ref) => sortBySeverity([
-    _fromAsync(ref.watch(lpgProvider), _lpgPlaceholder, (d) => lpgStatus(d.latest)),
-    _fromAsync(
+final homeSystemsProvider = Provider<List<SystemStatus>>((ref) {
+  final lpgAvailability = ref.watch(
+    deviceAvailabilityProvider((
+      component: 'lpg',
+      deviceId: AppConfig.lpgDeviceId,
+    )),
+  );
+  final pantryAvailability = ref.watch(
+    deviceAvailabilityProvider((
+      component: 'pantry',
+      deviceId: AppConfig.pantryBananaDeviceId,
+    )),
+  );
+  final pestAvailability = ref.watch(
+    deviceAvailabilityProvider((
+      component: 'pest',
+      deviceId: AppConfig.pestDeviceId,
+    )),
+  );
+  final childAvailability = ref.watch(
+    deviceAvailabilityProvider((
+      component: 'child',
+      deviceId: AppConfig.childDeviceId,
+    )),
+  );
+  return sortBySeverity([
+    _withAvailability(
+      lpgAvailability,
+      ref.watch(lpgProvider),
+      _lpgPlaceholder,
+      (d) => lpgStatus(d.latest),
+    ),
+    _withAvailability(
+      pantryAvailability,
       ref.watch(bananaPantryProvider),
       _bananaPlaceholder,
       (d) => pantryStatus(compartment: 'banana', snapshot: d),
     ),
-    _fromAsync(
+    _withAvailability(
+      pantryAvailability,
       ref.watch(potatoPantryProvider),
       _potatoPlaceholder,
       (d) => pantryStatus(compartment: 'potato', snapshot: d),
     ),
-    _fromAsync(ref.watch(pestProvider), _pestPlaceholder, pestStatus),
-    _fromAsync(ref.watch(childProvider), _childPlaceholder, childStatus),
-  ]),
-);
+    _withAvailability(
+      pestAvailability,
+      ref.watch(pestProvider),
+      _pestPlaceholder,
+      pestStatus,
+    ),
+    _withAvailability(
+      childAvailability,
+      ref.watch(childProvider),
+      _childPlaceholder,
+      childStatus,
+    ),
+  ]);
+});
 
 /// Summary-card copy derived from the system list.
 class HomeSummary {
@@ -340,7 +400,8 @@ class HomeSummary {
 
   factory HomeSummary.from(List<SystemStatus> systems, {DateTime? now}) {
     final live = systems.where((s) => s.isLive).length;
-    final critical = systems.where((s) => s.severity == Severity.critical).length;
+    final critical =
+        systems.where((s) => s.severity == Severity.critical).length;
     final attention = systems.where((s) => s.needsAttention).length;
     final offline = systems.length - live;
     final hour = (now ?? DateTime.now()).hour;

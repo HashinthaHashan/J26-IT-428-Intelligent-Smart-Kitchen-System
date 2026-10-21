@@ -124,13 +124,14 @@ async def create_indexes() -> None:
     await database["devices"].create_index("device_id", unique=True)
 
 
-async def mark_seen(device_id: str, component: str, status: str = "online") -> None:
+async def mark_seen(device_id: str, component: str, status: str = "online") -> datetime:
     now = datetime.now(timezone.utc)
     await get_db()["devices"].update_one(
         {"device_id": device_id},
         {"$set": {"device_id": device_id, "component": component, "last_seen": now, "status": status, "meta": {}}},
         upsert=True,
     )
+    return now
 
 
 def serializable(doc: dict[str, Any] | None) -> dict[str, Any] | None:

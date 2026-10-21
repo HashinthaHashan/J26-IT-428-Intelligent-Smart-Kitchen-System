@@ -492,7 +492,8 @@ void netBegin() {
 
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setBufferSize(512);
-  mqtt.setKeepAlive(15);
+  // Let the broker publish the offline Last Will within roughly 12 seconds.
+  mqtt.setKeepAlive(8);
   mqtt.setSocketTimeout(2);
   mqtt.setCallback(onMessage);
 

@@ -4,11 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/api_client.dart';
+import '../../core/config.dart';
+import '../../core/device_presence.dart';
 import '../../models/pantry.dart';
 import '../../shared/widgets/clay.dart';
 import '../../shared/widgets/clay_layout.dart';
 import '../../shared/widgets/clay_line_chart.dart';
 import '../../shared/widgets/clay_segmented.dart';
+import '../../shared/widgets/device_status_banner.dart';
 import 'pantry_providers.dart';
 import 'pantry_view.dart';
 
@@ -88,6 +91,7 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
   int _crop = 0;
 
   Future<void> _refresh() => Future.wait([
+    ref.read(devicePresenceProvider.notifier).refresh(),
     ref.read(bananaPantryProvider.notifier).refresh(),
     ref.read(potatoPantryProvider.notifier).refresh(),
   ]);
@@ -109,12 +113,35 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
     final compartment = _crops[_crop];
     final provider = _crop == 0 ? bananaPantryProvider : potatoPantryProvider;
     final value = ref.watch(provider);
+    final availability = ref.watch(
+      deviceAvailabilityProvider((
+        component: 'pantry',
+        deviceId: AppConfig.pantryBananaDeviceId,
+      )),
+    );
     const header = ClayScreenHeader(label: 'Produce storage', title: 'Pantry');
     final switcher = ClaySegmented(
       labels: const ['Banana', 'Potato'],
       selected: _crop,
       onChanged: (i) => setState(() => _crop = i),
     );
+
+    if (availability == DeviceAvailability.offline) {
+      return ClayPage(
+        onRefresh: _refresh,
+        children: [
+          header,
+          const SizedBox(height: 22),
+          switcher,
+          const SizedBox(height: 22),
+          ClayMessageCard(
+            message:
+                'Pantry device is offline. Connect power to start live sensor readings.',
+            onRetry: _refresh,
+          ),
+        ],
+      );
+    }
 
     final data = value.value;
     if (data == null) {
@@ -125,6 +152,10 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
           const SizedBox(height: 22),
           switcher,
           const SizedBox(height: 22),
+          if (availability == DeviceAvailability.online) ...[
+            const DeviceOnlineBanner(),
+            const SizedBox(height: 14),
+          ],
           value.hasError
               ? ClayMessageCard(
                 message: userFacingError(value.error!),
@@ -144,6 +175,8 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
         const SizedBox(height: 22),
         switcher,
         const SizedBox(height: 22),
+        const DeviceOnlineBanner(),
+        const SizedBox(height: 14),
         ClayEntrance(
           index: 0,
           child: _FreshnessCard(prediction: data.prediction, stage: stage),
@@ -235,7 +268,11 @@ class _FreshnessCard extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       'Live produce quality estimate',
-                      style: Clay.text(13.5, weight: 600, color: Clay.mutedGreen),
+                      style: Clay.text(
+                        13.5,
+                        weight: 600,
+                        color: Clay.mutedGreen,
+                      ),
                     ),
                   ],
                 ),
@@ -281,7 +318,12 @@ class _FreshnessCard extends StatelessWidget {
             const SizedBox(height: 14),
             Text(
               'Estimated from the shared gas sensors (rule-based, not the trained model yet).',
-              style: Clay.text(12, weight: 600, color: Clay.mutedWarm, height: 1.3),
+              style: Clay.text(
+                12,
+                weight: 600,
+                color: Clay.mutedWarm,
+                height: 1.3,
+              ),
             ),
           ],
         ],
@@ -609,7 +651,11 @@ class _HistorySheet extends ConsumerWidget {
                       ),
                       Text(
                         '$label box, last 24 hours',
-                        style: Clay.text(13.5, weight: 600, color: Clay.mutedWarm),
+                        style: Clay.text(
+                          13.5,
+                          weight: 600,
+                          color: Clay.mutedWarm,
+                        ),
                       ),
                     ],
                   ),

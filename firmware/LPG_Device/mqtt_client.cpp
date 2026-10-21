@@ -418,7 +418,9 @@ void netBegin() {
 
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setBufferSize(512);  // default 256 is too small for the telemetry JSON
-  mqtt.setKeepAlive(15);
+  // Short keepalive makes a power-off visible to the viva app in about 12 s
+  // instead of leaving the last reading looking live for half a minute.
+  mqtt.setKeepAlive(8);
   mqtt.setSocketTimeout(2);
   mqtt.setCallback(onMessage);
 

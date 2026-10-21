@@ -50,8 +50,16 @@ class MqttRouter:
         component, device_id, channel = parse_topic(topic)
         if channel == "status":
             status = json.loads(payload.decode()).get("status", "online")
-            await mark_seen(device_id, component, status=status)
-            await hub.publish("device_status", {"device_id": device_id, "component": component, "status": status})
+            last_seen = await mark_seen(device_id, component, status=status)
+            await hub.publish(
+                "device_status",
+                {
+                    "device_id": device_id,
+                    "component": component,
+                    "status": status,
+                    "last_seen": last_seen,
+                },
+            )
             return
         if component == "lpg" and channel == "telemetry":
             await self._lpg(device_id, payload)
