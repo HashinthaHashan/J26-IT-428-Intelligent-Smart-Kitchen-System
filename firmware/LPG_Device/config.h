@@ -35,12 +35,12 @@
 // -----------------------------------------------------------------------------
 // NETWORK  (TODO: fill in)
 // -----------------------------------------------------------------------------
-#define WIFI_SSID "YOUR_WIFI_SSID"          // TODO
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"  // TODO
+#define WIFI_SSID "iphone"          // TODO
+#define WIFI_PASSWORD "HRhasi321$$"  // TODO
 
 // IP of the machine running Mosquitto (docker compose) on your LAN.
 // NOT 127.0.0.1 - that would be the ESP32 itself.
-#define MQTT_HOST "192.168.1.100"  // TODO
+#define MQTT_HOST "172.20.10.12"  // TODO
 #define MQTT_PORT 1883
 #define MQTT_USER ""  // empty = anonymous (dev broker allows anonymous)
 #define MQTT_PASS ""
