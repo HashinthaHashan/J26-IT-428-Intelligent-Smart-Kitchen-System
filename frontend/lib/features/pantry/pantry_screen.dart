@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -110,6 +111,18 @@ class _PantryScreenState extends ConsumerState<PantryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(
+      deviceAvailabilityProvider((
+        component: 'pantry',
+        deviceId: AppConfig.pantryBananaDeviceId,
+      )),
+      (previous, next) {
+        if (next == DeviceAvailability.online && previous != next) {
+          unawaited(ref.read(bananaPantryProvider.notifier).refresh());
+          unawaited(ref.read(potatoPantryProvider.notifier).refresh());
+        }
+      },
+    );
     final compartment = _crops[_crop];
     final provider = _crop == 0 ? bananaPantryProvider : potatoPantryProvider;
     final value = ref.watch(provider);

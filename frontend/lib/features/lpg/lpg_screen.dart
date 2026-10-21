@@ -154,6 +154,17 @@ class _LpgScreenState extends ConsumerState<LpgScreen> {
   @override
   Widget build(BuildContext context) {
     ref.listen(lpgProvider, (_, next) => _reconcile(next.value));
+    ref.listen(
+      deviceAvailabilityProvider((
+        component: 'lpg',
+        deviceId: AppConfig.lpgDeviceId,
+      )),
+      (previous, next) {
+        if (next == DeviceAvailability.online && previous != next) {
+          unawaited(ref.read(lpgProvider.notifier).refresh());
+        }
+      },
+    );
     final value = ref.watch(lpgProvider);
     final notifier = ref.read(lpgProvider.notifier);
     final availability = ref.watch(

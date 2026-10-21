@@ -9,6 +9,10 @@ import 'ws_client.dart';
 
 enum DeviceAvailability { checking, online, offline }
 
+const _pollInterval = Duration(seconds: 2);
+const _expiryInterval = Duration(seconds: 1);
+const _offlineAfter = Duration(seconds: 15);
+
 typedef DeviceIdentity = ({String component, String deviceId});
 
 String _key(String component, String deviceId) => '$component/$deviceId';
@@ -36,18 +40,20 @@ String _keyForDevice(Device device) => _key(device.component, device.deviceId);
 class DevicePresenceController extends AsyncNotifier<Map<String, Device>> {
   StreamSubscription<LiveFrame>? _subscription;
   Timer? _pollTimer;
+  Timer? _expiryTimer;
+  final Map<String, int> _onlineHeartbeats = {};
+  final Set<String> _expiryEnabled = {};
   bool _disposed = false;
 
   @override
   Future<Map<String, Device>> build() async {
     _subscription = ref.read(wsClientProvider).events.listen(_onFrame);
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 5),
-      (_) => _refreshSilently(),
-    );
+    _pollTimer = Timer.periodic(_pollInterval, (_) => _refreshSilently());
+    _expiryTimer = Timer.periodic(_expiryInterval, (_) => _expireStale());
     ref.onDispose(() {
       _disposed = true;
       _pollTimer?.cancel();
+      _expiryTimer?.cancel();
       _subscription?.cancel();
     });
     return _fetch();
@@ -63,7 +69,8 @@ class DevicePresenceController extends AsyncNotifier<Map<String, Device>> {
       final key = _keyForDevice(device);
       final previous = result[key];
       if (previous == null || !device.lastSeen.isBefore(previous.lastSeen)) {
-        result[key] = device;
+        result[key] =
+            _expiryEnabled.contains(key) ? _withFreshStatus(device) : device;
       }
     }
     return result;
@@ -83,15 +90,28 @@ class DevicePresenceController extends AsyncNotifier<Map<String, Device>> {
   }
 
   void _onFrame(LiveFrame frame) {
-    if (frame.type != 'device_status') return;
+    if (frame.type != 'device_status') {
+      _markLiveDataSeen(frame);
+      return;
+    }
     final component = frame.data['component'] as String?;
     final deviceId = frame.data['device_id'] as String?;
     if (component == null || deviceId == null) return;
+    final key = _key(component, deviceId);
+    final status = (frame.data['status'] as String? ?? 'offline').toLowerCase();
+    if (status == 'online') {
+      final count = (_onlineHeartbeats[key] ?? 0) + 1;
+      _onlineHeartbeats[key] = count;
+      if (count >= 2) _expiryEnabled.add(key);
+    } else {
+      _onlineHeartbeats.remove(key);
+      _expiryEnabled.remove(key);
+    }
     final current = {...(state.value ?? _offlineDefaults())};
-    current[_key(component, deviceId)] = Device(
+    current[key] = Device(
       deviceId: deviceId,
       component: component,
-      status: (frame.data['status'] as String? ?? 'offline').toLowerCase(),
+      status: status,
       lastSeen:
           frame.data['last_seen'] == null
               ? DateTime.now().toUtc()
@@ -99,6 +119,54 @@ class DevicePresenceController extends AsyncNotifier<Map<String, Device>> {
       meta: const {},
     );
     state = AsyncData(current);
+  }
+
+  Device _withFreshStatus(Device device) {
+    if (device.status.toLowerCase() != 'online' ||
+        DateTime.now().toUtc().difference(device.lastSeen.toUtc()) <=
+            _offlineAfter) {
+      return device;
+    }
+    return Device(
+      deviceId: device.deviceId,
+      component: device.component,
+      status: 'offline',
+      lastSeen: device.lastSeen,
+      meta: device.meta,
+    );
+  }
+
+  void _markLiveDataSeen(LiveFrame frame) {
+    const liveTypes = {'lpg', 'pantry', 'pest', 'child'};
+    if (!liveTypes.contains(frame.type)) return;
+    final deviceId = frame.data['device_id'] as String?;
+    if (deviceId == null) return;
+    final current = {...(state.value ?? _offlineDefaults())};
+    final key = _key(frame.type, deviceId);
+    current[key] = Device(
+      deviceId: deviceId,
+      component: frame.type,
+      status: 'online',
+      lastSeen: DateTime.now().toUtc(),
+      meta: current[key]?.meta ?? const {},
+    );
+    state = AsyncData(current);
+  }
+
+  void _expireStale() {
+    final devices = state.value;
+    if (devices == null) return;
+    var changed = false;
+    final fresh = <String, Device>{};
+    for (final entry in devices.entries) {
+      final device =
+          _expiryEnabled.contains(entry.key)
+              ? _withFreshStatus(entry.value)
+              : entry.value;
+      fresh[entry.key] = device;
+      changed |= device.status != entry.value.status;
+    }
+    if (changed) state = AsyncData(fresh);
   }
 }
 

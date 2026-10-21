@@ -312,6 +312,7 @@ static void netTask(void *) {
   TelemetrySample pending{};
   uint32_t lastWifiTry = millis();
   uint32_t lastMqttTry = 0;
+  uint32_t lastHeartbeat = 0;
   uint32_t lastStatusLog = 0;
   uint32_t lastRescan = millis();
   int wifiFailures = 0;
@@ -386,6 +387,10 @@ static void netTask(void *) {
                     (unsigned)uxQueueMessagesWaiting(telemetryQueue));
     }
     mqtt.loop();
+    if (now - lastHeartbeat >= 3000) {
+      lastHeartbeat = now;
+      mqtt.publish(TOPIC_STATUS, "{\"status\":\"online\"}", true);
+    }
 
     // Flush queued telemetry (live + any backlog from an outage). A sample is
     // only removed after publish() succeeded, so nothing is lost on a failure.

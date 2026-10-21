@@ -58,13 +58,14 @@ class PestController extends AsyncNotifier<PestState> {
         queryParameters: {'limit': limit},
       );
       return PestState(
-        events: response.data!
-            .map(
-              (item) => PestEventDocument.fromJson(
-                Map<String, dynamic>.from(item as Map),
-              ),
-            )
-            .toList(),
+        events:
+            response.data!
+                .map(
+                  (item) => PestEventDocument.fromJson(
+                    Map<String, dynamic>.from(item as Map),
+                  ),
+                )
+                .toList(),
         limit: limit,
       );
     });
@@ -104,9 +105,10 @@ class PestController extends AsyncNotifier<PestState> {
     if (current != null) {
       state = AsyncData(
         current.copyWith(
-          pendingTrials: current.pendingTrials
-              .where((item) => item.trialId != trial.trialId)
-              .toList(),
+          pendingTrials:
+              current.pendingTrials
+                  .where((item) => item.trialId != trial.trialId)
+                  .toList(),
         ),
       );
     }

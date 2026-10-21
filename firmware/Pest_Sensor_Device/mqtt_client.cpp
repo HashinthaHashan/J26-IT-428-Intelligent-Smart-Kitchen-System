@@ -366,6 +366,7 @@ static void netTask(void *) {
   OutRec pending{};
   uint32_t lastWifiTry = millis();
   uint32_t lastMqttTry = 0;
+  uint32_t lastHeartbeat = 0;
   uint32_t lastStatusLog = 0;
   uint32_t lastRescan = millis();
   int wifiFailures = 0;
@@ -441,6 +442,10 @@ static void netTask(void *) {
       Serial.printf("[NET] ONLINE. %u queued event/trial record(s) will be sent now.\n", (unsigned)netQueued());
     }
     mqtt.loop();
+    if (now - lastHeartbeat >= 3000) {
+      lastHeartbeat = now;
+      mqtt.publish(TOPIC_STATUS, "{\"status\":\"online\"}", true);
+    }
 
     // 1) Capture requests first: they are time critical (the 3 s window).
     CaptureReq cr;
