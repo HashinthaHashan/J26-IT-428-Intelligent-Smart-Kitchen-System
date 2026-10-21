@@ -19,7 +19,7 @@ const _zones = [
   'Behind fridge',
 ];
 const _pageStep = 20;
-
+// The number of events to fetch from the backend at once. The UI can show fewer
 const _lightViolet = [Color(0xFFC9CBFA), Color(0xFF8E91EC)];
 const _cockroachPillBg = Color(0xFFFFE0DD);
 const _cockroachPillFg = Color(0xFFB13A45);
@@ -61,13 +61,11 @@ class _PestScreenState extends ConsumerState<PestScreen> {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(34)),
       ),
-      builder:
-          (_) => TrialReviewSheet(
-            trial: trial,
-            onSubmit:
-                (verdict) =>
-                    ref.read(pestProvider.notifier).review(trial, verdict),
-          ),
+      builder: (_) => TrialReviewSheet(
+        trial: trial,
+        onSubmit: (verdict) =>
+            ref.read(pestProvider.notifier).review(trial, verdict),
+      ),
     );
   }
 
@@ -98,9 +96,9 @@ class _PestScreenState extends ConsumerState<PestScreen> {
           const SizedBox(height: 22),
           value.hasError
               ? ClayMessageCard(
-                message: userFacingError(value.error!),
-                onRetry: notifier.refresh,
-              )
+                  message: userFacingError(value.error!),
+                  onRetry: notifier.refresh,
+                )
               : const ClayMessageCard(message: 'Loading pest activity...'),
         ],
       );
@@ -110,10 +108,9 @@ class _PestScreenState extends ConsumerState<PestScreen> {
     // Newest first, whatever order the backend / live frames arrived in.
     final sorted = [...data.events]
       ..sort((a, b) => b.event.ts.compareTo(a.event.ts));
-    final inZone =
-        allZones
-            ? sorted
-            : sorted.where((e) => e.event.zone == _zone).toList();
+    final inZone = allZones
+        ? sorted
+        : sorted.where((e) => e.event.zone == _zone).toList();
     final summary = PestSummary.from(
       inZone.map((e) => e.event),
       zone: _zone,
@@ -152,10 +149,9 @@ class _PestScreenState extends ConsumerState<PestScreen> {
         const SizedBox(height: 14),
         if (visible.isEmpty)
           _EmptyCard(
-            message:
-                data.events.isEmpty
-                    ? 'No pest events yet'
-                    : 'No events in $_zone yet',
+            message: data.events.isEmpty
+                ? 'No pest events yet'
+                : 'No events in $_zone yet',
           )
         else
           for (final (i, doc) in visible.indexed) ...[
@@ -237,7 +233,12 @@ class _SummaryCard extends StatelessWidget {
           child: Text(
             summary.headline,
             key: ValueKey(summary.headline),
-            style: Clay.text(25, weight: 900, color: Colors.white, height: 1.15),
+            style: Clay.text(
+              25,
+              weight: 900,
+              color: Colors.white,
+              height: 1.15,
+            ),
           ),
         ),
         const SizedBox(height: 6),
@@ -272,10 +273,9 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: _GlassTile(
-                value:
-                    summary.topMatchPct == null
-                        ? '–'
-                        : '${summary.topMatchPct}%',
+                value: summary.topMatchPct == null
+                    ? '–'
+                    : '${summary.topMatchPct}%',
                 label: 'Top match',
               ),
             ),
@@ -294,11 +294,10 @@ class _Swap extends StatelessWidget {
   @override
   Widget build(BuildContext context) => AnimatedSwitcher(
     duration: const Duration(milliseconds: 220),
-    layoutBuilder:
-        (current, previous) => Stack(
-          alignment: Alignment.centerLeft,
-          children: [...previous, if (current != null) current],
-        ),
+    layoutBuilder: (current, previous) => Stack(
+      alignment: Alignment.centerLeft,
+      children: [...previous, if (current != null) current],
+    ),
     child: child,
   );
 }
@@ -332,7 +331,12 @@ class _GlassTile extends StatelessWidget {
             child: Text(
               value,
               key: ValueKey(value),
-              style: Clay.text(24, weight: 900, color: Colors.white, height: 1.1),
+              style: Clay.text(
+                24,
+                weight: 900,
+                color: Colors.white,
+                height: 1.1,
+              ),
             ),
           ),
           const SizedBox(height: 2),
@@ -450,15 +454,16 @@ List<Color> _resultColors(PestResult r) => switch (r) {
   PestResult.none => _lightViolet,
 };
 
-({Color bg, Color fg}) _pillColors(PestResult r) =>
-    r == PestResult.nonPest
-        ? (bg: Clay.okPillBg, fg: Clay.okPillText)
-        : (bg: _cockroachPillBg, fg: _cockroachPillFg);
+({Color bg, Color fg}) _pillColors(PestResult r) => r == PestResult.nonPest
+    ? (bg: Clay.okPillBg, fg: Clay.okPillText)
+    : (bg: _cockroachPillBg, fg: _cockroachPillFg);
 
 String _resultWords(PestEvent e) {
   final r = resultOf(e);
   if (r.label == null) return 'no result';
-  final pct = e.yoloConf == null ? '' : ' ${(e.yoloConf! * 100).round()} percent';
+  final pct = e.yoloConf == null
+      ? ''
+      : ' ${(e.yoloConf! * 100).round()} percent';
   return '${r.label}$pct';
 }
 
@@ -494,7 +499,12 @@ class _ResultPill extends StatelessWidget {
             if (event.yoloConf != null)
               Text(
                 '${(event.yoloConf! * 100).round()}%',
-                style: Clay.text(15, weight: 900, color: colors.fg, height: 1.2),
+                style: Clay.text(
+                  15,
+                  weight: 900,
+                  color: colors.fg,
+                  height: 1.2,
+                ),
               ),
           ],
         ),
@@ -605,20 +615,19 @@ class _MoreButton extends StatelessWidget {
         widthFactor: 1,
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
-          child:
-              loading
-                  ? SizedBox(
-                    width: 22,
-                    height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.6,
-                      color: Clay.violet.last,
-                    ),
-                  )
-                  : Text(
-                    'Show older events',
-                    style: Clay.text(14.5, weight: 800, color: Clay.violet.last),
+          child: loading
+              ? SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2.6,
+                    color: Clay.violet.last,
                   ),
+                )
+              : Text(
+                  'Show older events',
+                  style: Clay.text(14.5, weight: 800, color: Clay.violet.last),
+                ),
         ),
       ),
     ),
@@ -638,10 +647,9 @@ class _TrialCard extends StatelessWidget {
   Widget build(BuildContext context) {
     // species is null when the deterrent fired on the device's fast path.
     final known = trial.species;
-    final species =
-        (known == null || known.isEmpty)
-            ? 'Pest (not identified)'
-            : '${known[0].toUpperCase()}${known.substring(1)}';
+    final species = (known == null || known.isEmpty)
+        ? 'Pest (not identified)'
+        : '${known[0].toUpperCase()}${known.substring(1)}';
     return ClayBox(
       radius: 26,
       depth: 0.9,
@@ -754,7 +762,11 @@ class _EventSheet extends StatelessWidget {
                       Text(event.zone, style: Clay.text(21, weight: 900)),
                       Text(
                         '${event.triggerSource} · ${_time(event.ts)}',
-                        style: Clay.text(14, weight: 600, color: Clay.mutedWarm),
+                        style: Clay.text(
+                          14,
+                          weight: 600,
+                          color: Clay.mutedWarm,
+                        ),
                       ),
                     ],
                   ),
