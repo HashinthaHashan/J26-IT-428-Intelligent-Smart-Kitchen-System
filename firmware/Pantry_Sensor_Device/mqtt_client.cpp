@@ -257,6 +257,7 @@ static void netTask(void *) {
   PantrySample pending{};
   uint32_t lastWifiTry = millis();
   uint32_t lastMqttTry = 0;
+  uint32_t lastHeartbeat = 0;
   uint32_t lastStatusLog = 0;
   uint32_t lastRescan = millis();
   int wifiFailures = 0;
@@ -330,6 +331,10 @@ static void netTask(void *) {
                     (unsigned)uxQueueMessagesWaiting(sampleQueue));
     }
     mqtt.loop();
+    if (now - lastHeartbeat >= 3000) {
+      lastHeartbeat = now;
+      mqtt.publish(TOPIC_STATUS, "{\"status\":\"online\"}", true);
+    }
 
     // Flush queued cycles. A cycle is only removed after BOTH compartment
     // messages were accepted; sentMask remembers a half-sent cycle across retries.
@@ -377,7 +382,9 @@ void netBegin() {
 
   mqtt.setServer(MQTT_HOST, MQTT_PORT);
   mqtt.setBufferSize(512);
-  mqtt.setKeepAlive(30);  // slow cadence: relax keepalive vs the LPG board
+  // Detect a powered-off board quickly so the app never presents stale values
+  // as live during the component-by-component demonstration.
+  mqtt.setKeepAlive(8);
   mqtt.setSocketTimeout(2);
 
   xTaskCreatePinnedToCore(netTask, "kg-net", 8192, nullptr, 1, nullptr, 0);

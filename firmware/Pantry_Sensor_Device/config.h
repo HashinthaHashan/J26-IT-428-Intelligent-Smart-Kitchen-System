@@ -20,12 +20,12 @@
 // NETWORK  (TODO: fill in)
 // -----------------------------------------------------------------------------
 // The ESP32 radio is 2.4 GHz ONLY. A network named "...5G..." will not be seen.
-#define WIFI_SSID "YOUR_WIFI_SSID"          // TODO
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"  // TODO
+#define WIFI_SSID "iphone"          // TODO
+#define WIFI_PASSWORD "HRhasi321$$"  // TODO
 
 // LAN IPv4 of the laptop running the backend/broker (from `ipconfig`).
 // NOT 127.0.0.1. Re-check it whenever the laptop reconnects (DHCP can change it).
-#define MQTT_HOST "192.168.1.100"  // TODO
+#define MQTT_HOST "172.20.10.12"  // TODO
 #define MQTT_PORT 1883
 #define MQTT_USER ""
 #define MQTT_PASS ""
@@ -118,16 +118,19 @@
 // -----------------------------------------------------------------------------
 // TIMING
 // -----------------------------------------------------------------------------
-// Pantry changes slowly: one reading every 60 s. The backend's pantry features
-// assume exactly this rate (its 6 h delta uses 360 samples, its moving average
-// 12 samples = 12 min), so keep 60 s unless you also change the backend.
-// No model card exists in the repo to confirm it; adjustable here.
+// Viva mode gives a useful reading quickly after this board is powered. Set to
+// 0 after the demonstration to restore the production 60 s / 180 s timings.
+#define VIVA_DEMO_MODE 1
+#if VIVA_DEMO_MODE
+#define SAMPLE_PERIOD_S 5
+#define WARMUP_S 10
+#else
 #define SAMPLE_PERIOD_S 60
+#define WARMUP_S 180
+#endif
 
 // Readings during this warm-up are shown on Serial but NOT published (a cold MQ
 // element reads wrongly). 48 h burn-in is a one-off; this is the per-boot warm-up.
-#define WARMUP_S 180
-
 // Serial-only live printout between publishes (0 = off), so you can watch values.
 #define LIVE_PRINT_S 10
 

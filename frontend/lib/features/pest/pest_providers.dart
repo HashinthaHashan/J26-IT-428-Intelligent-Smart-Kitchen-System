@@ -9,6 +9,7 @@ import '../../models/pest.dart';
 
 const _pageSize = 50;
 
+/// The state of the pest events page.
 class PestState {
   const PestState({
     required this.events,

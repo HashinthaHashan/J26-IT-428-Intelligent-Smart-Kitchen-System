@@ -20,12 +20,12 @@
 // NETWORK  (TODO: fill in)
 // -----------------------------------------------------------------------------
 // The ESP32 radio is 2.4 GHz ONLY. A network named "...5G..." will not be seen.
-#define WIFI_SSID "YOUR_WIFI_SSID"          // TODO
-#define WIFI_PASSWORD "YOUR_WIFI_PASSWORD"  // TODO
+#define WIFI_SSID "iphone"          // TODO
+#define WIFI_PASSWORD "HRhasi321$$"  // TODO
 
 // LAN IPv4 of the laptop running the backend/broker (from `ipconfig`).
 // NOT 127.0.0.1. Re-check it whenever the laptop reconnects (DHCP can change it).
-#define MQTT_HOST "192.168.1.100"  // TODO
+#define MQTT_HOST "172.20.10.12"  // TODO
 #define MQTT_PORT 1883
 #define MQTT_USER ""
 #define MQTT_PASS ""

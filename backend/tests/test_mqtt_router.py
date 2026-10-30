@@ -5,6 +5,7 @@ from datetime import datetime, timezone
 from kitchenguard_schemas import ChildEvent, LpgTelemetry, PantryTelemetry, PestEvent
 
 from app.db.mongo import get_db
+from app.db.repositories import list_devices
 from app.mqtt.router import router
 
 
@@ -31,3 +32,27 @@ async def test_mqtt_messages_land_in_memory_db() -> None:
     assert await db["telemetry_pantry"].find_one({"device_id": "pantry-banana01"})
     assert await db["pest_events"].find_one({"device_id": "pest-kitchen01"})
     assert await db["child_events"].find_one({"device_id": "child-cam01"})
+
+
+async def test_status_messages_switch_one_device_online_and_offline() -> None:
+    topic = "kitchenguard/lpg/lpg01/status"
+    await router.handle(topic, b'{"status":"online"}')
+    online = [row for row in await list_devices() if row["device_id"] == "lpg01"]
+    assert len(online) == 1
+    assert online[0]["status"] == "online"
+
+    await router.handle(topic, b'{"status":"offline"}')
+    offline = [row for row in await list_devices() if row["device_id"] == "lpg01"]
+    assert len(offline) == 1
+    assert offline[0]["status"] == "offline"
+    assert offline[0]["last_seen"] >= online[0]["last_seen"]
+
+
+async def test_status_update_targets_the_matching_device() -> None:
+    await router.handle("kitchenguard/lpg/lpg01/status", b'{"status":"online"}')
+    await router.handle("kitchenguard/pest/pest-kitchen01/status", b'{"status":"online"}')
+    await router.handle("kitchenguard/lpg/lpg01/status", b'{"status":"offline"}')
+
+    rows = {row["device_id"]: row for row in await list_devices()}
+    assert rows["lpg01"]["status"] == "offline"
+    assert rows["pest-kitchen01"]["status"] == "online"
