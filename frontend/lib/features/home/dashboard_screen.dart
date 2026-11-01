@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/device_presence.dart';
 import '../../shared/widgets/clay.dart';
 import '../alerts/alerts_providers.dart';
 import '../../shared/widgets/clay_layout.dart';
@@ -15,6 +16,7 @@ class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
 
   Future<void> _refresh(WidgetRef ref) => Future.wait([
+    ref.read(devicePresenceProvider.notifier).refresh(),
     ref.read(lpgProvider.notifier).refresh(),
     ref.read(bananaPantryProvider.notifier).refresh(),
     ref.read(potatoPantryProvider.notifier).refresh(),
@@ -43,7 +45,10 @@ class DashboardScreen extends ConsumerWidget {
     return ClayPage(
       onRefresh: () => _refresh(ref),
       children: [
-        ClayScreenHeader(label: greetingFor(DateTime.now()), title: 'KitchenGuard'),
+        ClayScreenHeader(
+          label: greetingFor(DateTime.now()),
+          title: 'KitchenGuard',
+        ),
         const SizedBox(height: 22),
         ClayEntrance(index: 0, child: _SummaryCard(summary: summary)),
         if (attention.isNotEmpty) ...[
@@ -77,9 +82,10 @@ class DashboardScreen extends ConsumerWidget {
                     Expanded(child: _HealthyTile(tiles[i])),
                     const SizedBox(width: 14),
                     Expanded(
-                      child: i + 1 < tiles.length
-                          ? _HealthyTile(tiles[i + 1])
-                          : const SizedBox.shrink(),
+                      child:
+                          i + 1 < tiles.length
+                              ? _HealthyTile(tiles[i + 1])
+                              : const SizedBox.shrink(),
                     ),
                   ],
                 ),
@@ -238,7 +244,10 @@ class _AttentionCard extends StatelessWidget {
     final s = system;
     return ClayBox(
       radius: 30,
-      color: s.severity == Severity.critical ? const Color(0xFFFDF2EF) : Clay.cardWarning,
+      color:
+          s.severity == Severity.critical
+              ? const Color(0xFFFDF2EF)
+              : Clay.cardWarning,
       padding: const EdgeInsets.all(20),
       semanticLabel: _semantics(s),
       onTap: () => context.go(s.route),
@@ -295,7 +304,12 @@ class _AttentionCard extends StatelessWidget {
             const SizedBox(height: 12),
             Text(
               s.tip!,
-              style: Clay.text(14, weight: 600, color: Clay.ink.withValues(alpha: 0.78), height: 1.35),
+              style: Clay.text(
+                14,
+                weight: 600,
+                color: Clay.ink.withValues(alpha: 0.78),
+                height: 1.35,
+              ),
             ),
           ],
         ],
@@ -322,14 +336,27 @@ class _HealthyTile extends StatelessWidget {
         children: [
           Row(
             children: [
-              ClayIconBlob(icon: s.icon, colors: s.iconColors, size: 46, radius: 16),
+              ClayIconBlob(
+                icon: s.icon,
+                colors: s.iconColors,
+                size: 46,
+                radius: 16,
+              ),
               const Spacer(),
               _pill(s),
             ],
           ),
           const SizedBox(height: 14),
-          Text(s.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: Clay.text(16, weight: 800)),
-          Text(s.subtitle, style: Clay.text(13.5, weight: 600, color: Clay.mutedGreen)),
+          Text(
+            s.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: Clay.text(16, weight: 800),
+          ),
+          Text(
+            s.subtitle,
+            style: Clay.text(13.5, weight: 600, color: Clay.mutedGreen),
+          ),
           const Spacer(),
           const SizedBox(height: 8),
           if (s.value != null)
@@ -343,7 +370,11 @@ class _HealthyTile extends StatelessWidget {
             ),
           if (s.progress != null) ...[
             const SizedBox(height: 10),
-            ClayProgress(value: s.progress!, colors: _barColors(s.severity), height: 10),
+            ClayProgress(
+              value: s.progress!,
+              colors: _barColors(s.severity),
+              height: 10,
+            ),
           ],
         ],
       ),
@@ -358,7 +389,10 @@ class _CompactRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final s = system;
-    final detail = s.value == null ? s.subtitle : '${s.subtitle} · ${s.value} ${s.unit ?? ''}';
+    final detail =
+        s.value == null
+            ? s.subtitle
+            : '${s.subtitle} · ${s.value} ${s.unit ?? ''}';
     return ClayBox(
       radius: 28,
       color: s.isLive ? Clay.cardHealthy : Clay.cardWarning,
@@ -369,14 +403,22 @@ class _CompactRow extends StatelessWidget {
         constraints: const BoxConstraints(minHeight: 44),
         child: Row(
           children: [
-            ClayIconBlob(icon: s.icon, colors: s.iconColors, size: 46, radius: 16),
+            ClayIconBlob(
+              icon: s.icon,
+              colors: s.iconColors,
+              size: 46,
+              radius: 16,
+            ),
             const SizedBox(width: 14),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(s.title, style: Clay.text(16, weight: 800)),
-                  Text(detail, style: Clay.text(13.5, weight: 600, color: Clay.mutedGreen)),
+                  Text(
+                    detail,
+                    style: Clay.text(13.5, weight: 600, color: Clay.mutedGreen),
+                  ),
                 ],
               ),
             ),

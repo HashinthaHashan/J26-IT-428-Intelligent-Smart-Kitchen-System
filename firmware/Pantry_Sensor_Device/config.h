@@ -118,16 +118,19 @@
 // -----------------------------------------------------------------------------
 // TIMING
 // -----------------------------------------------------------------------------
-// Pantry changes slowly: one reading every 60 s. The backend's pantry features
-// assume exactly this rate (its 6 h delta uses 360 samples, its moving average
-// 12 samples = 12 min), so keep 60 s unless you also change the backend.
-// No model card exists in the repo to confirm it; adjustable here.
+// Viva mode gives a useful reading quickly after this board is powered. Set to
+// 0 after the demonstration to restore the production 60 s / 180 s timings.
+#define VIVA_DEMO_MODE 1
+#if VIVA_DEMO_MODE
+#define SAMPLE_PERIOD_S 5
+#define WARMUP_S 10
+#else
 #define SAMPLE_PERIOD_S 60
+#define WARMUP_S 180
+#endif
 
 // Readings during this warm-up are shown on Serial but NOT published (a cold MQ
 // element reads wrongly). 48 h burn-in is a one-off; this is the per-boot warm-up.
-#define WARMUP_S 180
-
 // Serial-only live printout between publishes (0 = off), so you can watch values.
 #define LIVE_PRINT_S 10
 

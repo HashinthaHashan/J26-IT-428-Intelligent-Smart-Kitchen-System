@@ -30,21 +30,24 @@ class MemoryCollection:
         return MemoryCursor([dict(d) for d in self.docs if _matches(d, filt or {})])
 
     async def update_one(self, filt: dict[str, Any], update: dict[str, Any], upsert: bool = False) -> Any:
-        doc = await self.find_one(filt)
-        if doc is None and upsert:
-            doc = dict(filt)
+        index = next((i for i, existing in enumerate(self.docs) if _matches(existing, filt)), None)
+        inserted = index is None and upsert
+        if inserted:
+            doc = {**filt, "_id": len(self.docs) + 1}
             self.docs.append(doc)
-        if doc is not None:
+            index = len(self.docs) - 1
+        elif index is not None:
+            doc = dict(self.docs[index])
+        else:
+            doc = None
+        if doc is not None and index is not None:
             if "$set" in update:
                 for key, value in update["$set"].items():
                     _set(doc, key, value)
-            if "$setOnInsert" in update and doc not in self.docs:
+            if "$setOnInsert" in update and inserted:
                 for key, value in update["$setOnInsert"].items():
                     _set(doc, key, value)
-            for idx, existing in enumerate(self.docs):
-                if existing.get("_id") == doc.get("_id") or _matches(existing, filt):
-                    self.docs[idx] = doc
-                    break
+            self.docs[index] = doc
         return type("UpdateResult", (), {"modified_count": 1 if doc else 0})()
 
     async def create_index(self, *args: Any, **kwargs: Any) -> None:
@@ -124,13 +127,14 @@ async def create_indexes() -> None:
     await database["devices"].create_index("device_id", unique=True)
 
 
-async def mark_seen(device_id: str, component: str, status: str = "online") -> None:
+async def mark_seen(device_id: str, component: str, status: str = "online") -> datetime:
     now = datetime.now(timezone.utc)
     await get_db()["devices"].update_one(
         {"device_id": device_id},
         {"$set": {"device_id": device_id, "component": component, "last_seen": now, "status": status, "meta": {}}},
         upsert=True,
     )
+    return now
 
 
 def serializable(doc: dict[str, Any] | None) -> dict[str, Any] | None:
